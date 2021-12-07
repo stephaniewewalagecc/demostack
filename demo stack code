@@ -1,0 +1,77 @@
+heat_template_version: 2015-04-30
+
+description: Full template to deploy a single compute instance
+
+parameters:
+  keyname: 
+    type: string
+    description: keypair name to connect to the server
+    default: catalyst
+
+resources:
+
+  demo-network:
+    type: OS::Neutron::Net
+    
+  demo-subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      cidr: "192.168.199.0/24"
+      network: { get_resource: demo-network }
+      
+  demo-router:
+    type: OS::Neutron::Router
+    properties:
+      external_gateway_info: { network: public-net }
+
+  demo-interface:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router: { get_resource: demo-router } 
+      subnet: { get_resource: demo-subnet }
+      
+  demo-sg:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      rules: [{"direction": "ingress", 
+      "port_range_min": 1, 
+      "port_range_max": 65535, 
+      "protocol": "tcp"}]
+
+  demo-port:
+    type: OS::Neutron::Port
+    properties:
+      network: { get_resource: demo-network }
+      security_groups: [{get_resource: demo-sg}]
+
+  demo-floating-ip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network: "public-net"
+
+  dmeo-floating-ip-assoc:
+    type: OS::Neutron::FloatingIPAssociation
+    depends_on: [ demo-interface ]
+    properties:
+      floatingip_id: {get_resource: demo-floating-ip}
+      port_id: {get_resource: demo-port}
+
+  demo-server:
+    type: OS::Nova::Server
+    properties:
+      flavor: c1.c4r4
+      image: ubuntu-18.04-x86_64
+      key_name: { get_param: keyname }
+      networks:
+        - port: { get_resource: demo-port }
+      user_data:  |
+        #!/bin/bash -x
+        apt-get update
+        apt-get install -y docker.io
+        docker run --name db -d -e MYSQL_DATABASE=wp -e MYSQL_ROOT_PASSWORD=stas mysql
+        docker run --name web --link db:db -d -p 80:80 wordpress 
+
+outputs:
+  public_ip_address:
+    description: Public IP address
+    value: { get_attr: [ demo-floating-ip, floating_ip_address ] }
