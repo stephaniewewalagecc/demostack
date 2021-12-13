@@ -10,27 +10,27 @@ parameters:
 
 resources:
 
-  demo-network:
+  steph-network:
     type: OS::Neutron::Net
     
-  demo-subnet:
+  steph-subnet:
     type: OS::Neutron::Subnet
     properties:
       cidr: "192.168.199.0/24"
-      network: { get_resource: demo-network }
+      network: { get_resource: steph-network }
       
-  demo-router:
+  steph-router:
     type: OS::Neutron::Router
     properties:
       external_gateway_info: { network: public-net }
 
-  demo-interface:
+  steph-interface:
     type: OS::Neutron::RouterInterface
     properties:
-      router: { get_resource: demo-router } 
-      subnet: { get_resource: demo-subnet }
+      router: { get_resource: steph-router } 
+      subnet: { get_resource: steph-subnet }
       
-  demo-sg:
+  steph-sg:
     type: OS::Neutron::SecurityGroup
     properties:
       rules: [{"direction": "ingress", 
@@ -38,32 +38,32 @@ resources:
       "port_range_max": 65535, 
       "protocol": "tcp"}]
 
-  demo-port:
+  steph-port:
     type: OS::Neutron::Port
     properties:
-      network: { get_resource: demo-network }
-      security_groups: [{get_resource: demo-sg}]
+      network: { get_resource: steph-network }
+      security_groups: [{get_resource: steph-sg}]
 
-  demo-floating-ip:
+  steph-floating-ip:
     type: OS::Neutron::FloatingIP
     properties:
       floating_network: "public-net"
 
-  dmeo-floating-ip-assoc:
+  steph-floating-ip-assoc:
     type: OS::Neutron::FloatingIPAssociation
-    depends_on: [ demo-interface ]
+    depends_on: [ steph-interface ]
     properties:
-      floatingip_id: {get_resource: demo-floating-ip}
-      port_id: {get_resource: demo-port}
+      floatingip_id: {get_resource: steph-floating-ip}
+      port_id: {get_resource: steph-port}
 
-  demo-server:
+  steph-server:
     type: OS::Nova::Server
     properties:
       flavor: c1.c4r4
       image: ubuntu-18.04-x86_64
       key_name: { get_param: keyname }
       networks:
-        - port: { get_resource: demo-port }
+        - port: { get_resource: steph-port }
       user_data:  |
         #!/bin/bash -x
         apt-get update
@@ -74,4 +74,4 @@ resources:
 outputs:
   public_ip_address:
     description: Public IP address
-    value: { get_attr: [ demo-floating-ip, floating_ip_address ] }
+    value: { get_attr: [ steph-floating-ip, floating_ip_address ] }
